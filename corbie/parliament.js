@@ -41,12 +41,7 @@ export default async function(opts = { hostname: "localhost", port: 8080 }) {
 					status = 400
 					tree().emit("Log", 'Parliament: ', conn.remoteAddr, ": 400 Error: ",  e)
 				}
-				const resp = new Response('{ "error": "Bad Request" }\n', {
-					status: status,
-					headers: {
-						"X-Ash": "Is still the bum"
-					}
-				})
+				const resp = new Response(body, {status, headers})
 				await req.respondWith(resp)
 
 			}
