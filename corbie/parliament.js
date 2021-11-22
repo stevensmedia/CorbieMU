@@ -18,10 +18,19 @@ async function readStream(stream) {
 	return decoder.decode(buf)
 }
 
+function log(conn, req, status) {
+	if(!req) {
+		tree().emit("Log", 'Parliament:', `${conn.remoteAddr.transport}/${conn.remoteAddr.hostname}:${conn.remoteAddr.port}`, ":", status)
+	} else {
+		tree().emit("Log", 'Parliament:', `${conn.remoteAddr.transport}/${conn.remoteAddr.hostname}:${conn.remoteAddr.port}`, ":", status, req.request.method, ":", req.request.url)
+	}
+}
+
 async function send404(conn, req, headers) {
 	const body = "<html><head><title>Not Found</title></head><body><h1>Not found</h1><p>Error 404</p></body></html>\n"
 	const status = 404
 	headers["Content-Type"] = "text/html"
+	log(conn, req, status)
 	const resp = new Response(body, {status, headers})
 	await req.respondWith(resp)
 }
@@ -30,22 +39,26 @@ async function root(conn, req, headers) {
 	const body = "<html><head><title>CorbieMU</title></head><body><h1>CorbieMU</h1><p>(o)&gt;</p></body></html>\n"
 	const status = 200
 	headers["Content-Type"] = "text/html"
+	log(conn, req, status)
 	const resp = new Response(body, {status, headers})
 	await req.respondWith(resp)
 }
 
 async function postPacket(conn, req, headers) {
+	var body = ""
+	var status = 0
 	try {
 		const rawpacket = await readStream(req.request.body)
 		const packet = JSON.parse(rawpacket)
+		headers["Content-Type"] = "application/json"
 		body = '{ "result": "Packet Received" }\n'
 		status = 200
 		tree().emit("Packet", packet)
-		tree().emit("Log", 'Parliament: ', conn.remoteAddr, ": Packet received")
+		log(conn, req, status)
 	} catch(e) {
 		body = '{ "error": "Bad Request" }\n'
 		status = 400
-		tree().emit("Log", 'Parliament: ', conn.remoteAddr, ": 400 Error: ",  e)
+		log(conn, req, status)
 	}
 	const resp = new Response(body, {status, headers})
 	await req.respondWith(resp)
@@ -79,7 +92,8 @@ export default async function(opts = { hostname: "localhost", port: 8080 }) {
 				await send404(conn, req, headers)
 			}
 		} catch(e) {
-			tree().emit("Log", 'Parliament: ', conn.remoteAddr, ": 500 Error: ",  e)
+			log(conn, false, 500)
+			tree().emit("Log", 'Parliament: Internal Server Error: ', e)
 		}
 	}
 }
