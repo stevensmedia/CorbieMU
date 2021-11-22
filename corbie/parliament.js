@@ -26,7 +26,7 @@ function log(conn, req, status) {
 	}
 }
 
-async function send404(conn, req, headers) {
+async function request404(conn, req, headers) {
 	const body = "<html><head><title>Not Found</title></head><body><h1>Not found</h1><p>Error 404</p></body></html>\n"
 	const status = 404
 	headers["Content-Type"] = "text/html"
@@ -35,7 +35,7 @@ async function send404(conn, req, headers) {
 	await req.respondWith(resp)
 }
 
-async function root(conn, req, headers) {
+async function getRoot(conn, req, headers) {
 	const body = "<html><head><title>CorbieMU</title></head><body><h1>CorbieMU</h1><p>(o)&gt;</p></body></html>\n"
 	const status = 200
 	headers["Content-Type"] = "text/html"
@@ -44,7 +44,7 @@ async function root(conn, req, headers) {
 	await req.respondWith(resp)
 }
 
-async function postPacket(conn, req, headers) {
+async function postPost(conn, req, headers) {
 	var body = ""
 	var status = 0
 	try {
@@ -64,36 +64,41 @@ async function postPacket(conn, req, headers) {
 	await req.respondWith(resp)
 }
 
+async function handleConnection(conn) {
+	var headers = {
+		"X-Ash": "Is still the bum"
+	}
+	try {
+		for await (const req of Deno.serveHttp(conn)) {
+			var url = new URL(req.request.url)
+			if(url.pathname == '/' &&
+			   req.request.method == "GET") {
+				await getRoot(conn, req, headers)
+				continue
+			}
+			if(url.pathname == '/post/' &&
+			   req.request.method == "POST") {
+				await postPost(conn, req, headers)
+				continue
+			}
+			if(url.pathname == '/socket/' &&
+			   req.request.headers.get("upgrade") == "websocket") {
+				await websocket(conn, req, headers)
+				continue
+			}
+			await request404(conn, req, headers)
+		}
+	} catch(e) {
+		log(conn, false, 500)
+		tree().emit("Log", 'Parliament: Internal Server Error: ', e)
+	}
+}
+
 export default async function(opts = { hostname: "localhost", port: 8080 }) {
 	const server = Deno.listen(opts)
 	tree().emit("Log", 'Parliament: Now listening', opts)
-	for await (const conn of server) {
-		var headers = {
-			"X-Ash": "Is still the bum"
-		}
-		try {
-			for await (const req of Deno.serveHttp(conn)) {
-				var url = new URL(req.request.url)
-				if(url.pathname == '/' &&
-				   req.request.method == "GET") {
-					await root(conn, req, headers)
-					continue
-				}
-				if(url.pathname == '/post/' &&
-				   req.request.method == "POST") {
-					await postPacket(conn, req, headers)
-					continue
-				}
-				if(url.pathname == '/socket/' &&
-				   req.request.headers.get("upgrade") == "websocket") {
-					await websocket(conn, req, headers)
-					continue
-				}
-				await send404(conn, req, headers)
-			}
-		} catch(e) {
-			log(conn, false, 500)
-			tree().emit("Log", 'Parliament: Internal Server Error: ', e)
-		}
+
+	while(true) {
+		handleConnection(await server.accept())
 	}
 }
