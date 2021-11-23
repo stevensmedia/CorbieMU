@@ -44,6 +44,9 @@ async function getRoot(conn, req, headers) {
 	await req.respondWith(resp)
 }
 
+const packetSuccess = '{ "result": "Packet Received" }\n'
+const packetFail = '{ "error": "Bad Request" }\n'
+
 async function postPost(conn, req, headers) {
 	var body = ""
 	var status = 0
@@ -51,17 +54,45 @@ async function postPost(conn, req, headers) {
 		const rawpacket = await readStream(req.request.body)
 		const packet = JSON.parse(rawpacket)
 		headers["Content-Type"] = "application/json"
-		body = '{ "result": "Packet Received" }\n'
+		body = packetSuccess
 		status = 200
 		tree().emit("Packet", packet)
 		log(conn, req, status)
 	} catch(e) {
-		body = '{ "error": "Bad Request" }\n'
+		body = packetFail
 		status = 400
 		log(conn, req, status)
 	}
 	const resp = new Response(body, {status, headers})
 	await req.respondWith(resp)
+}
+
+async function websocket(conn, req, headers) {
+	var websocket = Deno.upgradeWebSocket(req.request)
+	websocket.socket.onopen = function() {
+		websocket.socket.send('{ "status": "online" }')
+		tree().emit("Log", 'Parliament:', `${conn.remoteAddr.transport}/${conn.remoteAddr.hostname}:${conn.remoteAddr.port}`, ": Websocket opened!")
+	}
+	websocket.socket.onmessage = function(msg) {
+		tree().emit("Packet?")
+		try {
+			const rawpacket = msg.data
+			const packet = JSON.parse(rawpacket)
+			websocket.socket.send(packetSuccess)
+			tree().emit("Packet", packet)
+		} catch(e) {
+			websocket.socket.send(packetFail)
+		}
+	}
+	websocket.socket.onerror = function(e) {
+		tree().emit("Log", 'Parliament:', `${conn.remoteAddr.transport}/${conn.remoteAddr.hostname}:${conn.remoteAddr.port}`, ": Websocket error: ", e.message)
+	}
+
+	websocket.socket.onclose = function() {
+		tree().emit("Log", 'Parliament:', `${conn.remoteAddr.transport}/${conn.remoteAddr.hostname}:${conn.remoteAddr.port}`, ": Websocket closed!")
+	}
+
+	req.respondWith(websocket.response)
 }
 
 async function handleConnection(conn) {
