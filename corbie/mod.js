@@ -1,6 +1,6 @@
-import { default as parliament } from "./parliament.js"
-import { default as tree } from "./tree.js"
-const egg = await import("./egg.js")
-const nest = await import("./nest.js")
+import parliament from "./parliament.js"
+import tree from "./tree.js"
+import egg from "./egg.js"
+import nest from "./nest.js"
 
-export { parliament, tree, egg, nest }
+export default { parliament, tree, egg, nest }

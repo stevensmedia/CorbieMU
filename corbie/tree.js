@@ -1,4 +1,4 @@
-const uuid = await import("https://deno.land/std/uuid/mod.ts")
+import * as uuid from "https://deno.land/std/uuid/mod.ts"
 
 function Tree() {
 	this.listeners = []
@@ -29,7 +29,7 @@ function Tree() {
 
 var singleton = false
 
-export default function() {
+export default function tree() {
 	if(!singleton) {
 		singleton = new Tree()
 	}

@@ -1,4 +1,4 @@
-import { default as tree } from "./tree.js"
+import tree from "./tree.js"
 
 const decoder = new TextDecoder("utf8")
 
@@ -125,7 +125,7 @@ async function handleConnection(conn) {
 	}
 }
 
-export default async function(opts = { hostname: "localhost", port: 8080 }) {
+export default async function parliament(opts = { hostname: "localhost", port: 8080 }) {
 	const server = Deno.listen(opts)
 	tree().emit("Log", 'Parliament: Now listening', opts)
 
