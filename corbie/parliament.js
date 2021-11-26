@@ -1,4 +1,5 @@
 import tree from "./tree.js"
+import * as server from "https://deno.land/std@0.116.0/http/server.ts";
 
 const decoder = new TextDecoder("utf8")
 
@@ -19,11 +20,7 @@ async function readStream(stream) {
 }
 
 function log(conn, req, status) {
-	if(!req) {
-		tree().emit("Log", 'Parliament:', `${conn.remoteAddr.transport}/${conn.remoteAddr.hostname}:${conn.remoteAddr.port}`, ":", status)
-	} else {
-		tree().emit("Log", 'Parliament:', `${conn.remoteAddr.transport}/${conn.remoteAddr.hostname}:${conn.remoteAddr.port}`, ":", status, req.request.method, ":", req.request.url)
-	}
+	tree().emit("Log", `Parliament ${conn.remoteAddr.transport}/${conn.remoteAddr.hostname}:${conn.remoteAddr.port} ${status} ${req.method} ${req.url}`)
 }
 
 async function request404(conn, req, headers) {
@@ -31,8 +28,7 @@ async function request404(conn, req, headers) {
 	const status = 404
 	headers["Content-Type"] = "text/html"
 	log(conn, req, status)
-	const resp = new Response(body, {status, headers})
-	await req.respondWith(resp)
+	return new Response(body, {status, headers})
 }
 
 async function getRoot(conn, req, headers) {
@@ -40,8 +36,7 @@ async function getRoot(conn, req, headers) {
 	const status = 200
 	headers["Content-Type"] = "text/html"
 	log(conn, req, status)
-	const resp = new Response(body, {status, headers})
-	await req.respondWith(resp)
+	return new Response(body, {status, headers})
 }
 
 const packetSuccess = '{ "result": "Packet Received" }\n'
@@ -51,7 +46,7 @@ async function postPost(conn, req, headers) {
 	var body = ""
 	var status = 0
 	try {
-		const rawpacket = await readStream(req.request.body)
+		const rawpacket = await readStream(req.body)
 		const packet = JSON.parse(rawpacket)
 		headers["Content-Type"] = "application/json"
 		body = packetSuccess
@@ -63,15 +58,14 @@ async function postPost(conn, req, headers) {
 		status = 400
 		log(conn, req, status)
 	}
-	const resp = new Response(body, {status, headers})
-	await req.respondWith(resp)
+	return new Response(body, {status, headers})
 }
 
 async function websocket(conn, req, headers) {
-	var websocket = Deno.upgradeWebSocket(req.request)
+	var websocket = Deno.upgradeWebSocket(req)
 	websocket.socket.onopen = function() {
 		websocket.socket.send('{ "status": "online" }')
-		tree().emit("Log", 'Parliament:', `${conn.remoteAddr.transport}/${conn.remoteAddr.hostname}:${conn.remoteAddr.port}`, ": Websocket opened!")
+		log(req, "Websocket")
 	}
 	websocket.socket.onmessage = function(msg) {
 		tree().emit("Packet?")
@@ -85,51 +79,68 @@ async function websocket(conn, req, headers) {
 		}
 	}
 	websocket.socket.onerror = function(e) {
-		tree().emit("Log", 'Parliament:', `${conn.remoteAddr.transport}/${conn.remoteAddr.hostname}:${conn.remoteAddr.port}`, ": Websocket error: ", e.message)
+		log(conn, req, "Websocket Error")
+		log(conn, req, e)
 	}
 
 	websocket.socket.onclose = function() {
-		tree().emit("Log", 'Parliament:', `${conn.remoteAddr.transport}/${conn.remoteAddr.hostname}:${conn.remoteAddr.port}`, ": Websocket closed!")
+		log(conn, req, "Websocket Close")
 	}
 
-	req.respondWith(websocket.response)
+	return websocket.response
 }
 
-async function handleConnection(conn) {
-	var headers = {
+export default function parliament(opts = { hostname: "localhost", port: 8080 }) {
+	this.headers = {
 		"X-Ash": "Is still the bum"
 	}
-	try {
-		for await (const req of Deno.serveHttp(conn)) {
-			var url = new URL(req.request.url)
-			if(url.pathname == '/' &&
-			   req.request.method == "GET") {
-				await getRoot(conn, req, headers)
-				continue
-			}
-			if(url.pathname == '/post/' &&
-			   req.request.method == "POST") {
-				await postPost(conn, req, headers)
-				continue
-			}
-			if(url.pathname == '/socket/' &&
-			   req.request.headers.get("upgrade") == "websocket") {
-				await websocket(conn, req, headers)
-				continue
-			}
-			await request404(conn, req, headers)
+
+	this.start = async function() {
+		if(this.server) {
+			throw new Error("Already listening")
+			return false
 		}
-	} catch(e) {
-		log(conn, false, 500)
-		tree().emit("Log", 'Parliament: Internal Server Error: ', e)
-	}
-}
 
-export default async function parliament(opts = { hostname: "localhost", port: 8080 }) {
-	const server = Deno.listen(opts)
-	tree().emit("Log", 'Parliament: Now listening', opts)
+		this.abortController = new AbortController()
 
-	while(true) {
-		handleConnection(await server.accept())
-	}
+		const serveOpts = {
+			signal: this.abortController.signal
+		}
+
+		this.server = server.listenAndServe(`${opts.hostname}:${opts.port}`, this.handler, serveOpts)
+		tree().emit("Log", 'Parliament: Now listening', opts)
+
+
+	}.bind(this)
+
+	this.handler = async function(req, conn) {
+		try {
+			var url = new URL(req.url)
+
+			if(url.pathname == '/' && req.method == "GET") {
+				return await getRoot(conn, req, this.headers)
+			}
+
+			if(url.pathname == '/post/' && req.method == "POST") {
+				return await postPost(conn, req, this.headers)
+			}
+
+			if(url.pathname == '/socket/' && req.headers.get("upgrade") == "websocket") {
+				return await websocket(conn, req, this.headers)
+			}
+
+			return await request404(conn, req, this.headers)
+		} catch(e) {
+			log(conn, req, 500)
+			return new Response("500 Internal Server Error", {status: 500, headers})
+		}
+	}.bind(this)
+
+	this.close = async function() {
+		if(!this.server) {
+			return
+		}
+		this.abortController.abort()
+		await this.server
+	}.bind(this)
 }
