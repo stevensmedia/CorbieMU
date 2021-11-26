@@ -14,4 +14,3 @@ corbie.tree().on("Packet", function(packet) {
 
 const server = new corbie.parliament()
 server.start()
-await server.close()
