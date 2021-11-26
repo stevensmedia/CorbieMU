@@ -62,32 +62,40 @@ async function postPost(conn, req, headers) {
 }
 
 async function websocket(conn, req, headers) {
-	var websocket = Deno.upgradeWebSocket(req)
-	websocket.socket.onopen = function() {
-		websocket.socket.send('{ "status": "online" }')
-		log(req, "Websocket")
-	}
-	websocket.socket.onmessage = function(msg) {
-		tree().emit("Packet?")
-		try {
-			const rawpacket = msg.data
-			const packet = JSON.parse(rawpacket)
-			websocket.socket.send(packetSuccess)
-			tree().emit("Packet", packet)
-		} catch(e) {
-			websocket.socket.send(packetFail)
+	try {
+		log(conn, req, "Websocket")
+		var websocket = Deno.upgradeWebSocket(req)
+
+		websocket.socket.onopen = function() {
+			log(conn, req, "Websocket opened")
+			websocket.socket.send('{ "status": "online" }')
 		}
-	}
-	websocket.socket.onerror = function(e) {
-		log(conn, req, "Websocket Error")
+		websocket.socket.onmessage = function(msg) {
+			log(conn, req, "Websocket packet")
+			try {
+				const rawpacket = msg.data
+				const packet = JSON.parse(rawpacket)
+				websocket.socket.send(packetSuccess)
+				tree().emit("Packet", packet)
+			} catch(e) {
+				websocket.socket.send(packetFail)
+			}
+		}
+		websocket.socket.onerror = function(e) {
+			log(conn, req, "Websocket error")
+			log(conn, req, e)
+		}
+
+		websocket.socket.onclose = function() {
+			log(conn, req, "Websocket closed")
+		}
+
+		return websocket.response
+	} catch(e) {
+		log(conn, req, "Websocket error")
 		log(conn, req, e)
+		return new Response("500 Internal Server Error", {status: 500, headers})
 	}
-
-	websocket.socket.onclose = function() {
-		log(conn, req, "Websocket Close")
-	}
-
-	return websocket.response
 }
 
 export default function parliament(opts = { hostname: "localhost", port: 8080 }) {

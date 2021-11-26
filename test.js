@@ -2,6 +2,12 @@ import * as asserts from "https://deno.land/std@0.115.1/testing/asserts.ts"
 
 import corbie from "./corbie/mod.js"
 
+/*
+corbie.tree().on("Log", function(...args) {
+	console.log("\nLOG:", ...args)
+})
+*/
+
 Deno.test("starts", async function() {
 	const server = new corbie.parliament()
 	server.start()
@@ -71,4 +77,21 @@ Deno.test("accepts POST /post/", async function() {
 	asserts.assert(!json.error, "has no json error")
 	asserts.assert(json.result, "has json result")
 
+})
+
+Deno.test("accepts WebSocket connection", async function() {
+	return new Promise(function(resolve, reject) {
+		const server = new corbie.parliament()
+		server.start()
+
+		const ws = new WebSocket('ws://localhost:8080/socket/')
+		ws.onopen = () => ws.send('{"foo":"true"}')
+		ws.onclose = async () => { await server.close(); resolve() }
+		ws.onmessage = async function(m) {
+			asserts.assert(m.data, "returns data")
+			const json = (() => { try { return JSON.parse(m.data) } catch { fail("m.data is JSON") } })()
+			asserts.assert(json.status == "online", "status is online")
+			ws.close()
+		}
+	})
 })
