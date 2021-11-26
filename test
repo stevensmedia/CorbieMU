@@ -1,0 +1,2 @@
+#! /bin/sh
+deno test --allow-read --allow-net=localhost,deno.land
