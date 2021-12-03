@@ -2,23 +2,52 @@ import * as asserts from "https://deno.land/std@0.115.1/testing/asserts.ts"
 
 import corbie from "./corbie/mod.js"
 
-/*
-corbie.tree().on("Log", function(...args) {
-	console.log("\nLOG:", ...args)
+const hostname = 'localhost'
+const port = 42010
+const baseURI = `http://${hostname}:${port}`
+
+function startup() {
+	const tree = new corbie.tree()
+
+	/*
+	tree.on("Log", function(...args) {
+		console.log("\nLOG:", ...args)
+	})
+	*/
+
+	const server = new corbie.parliament(tree, {
+		hostname: hostname,
+		port: port
+	})
+	server.start()
+	return server
+}
+
+Deno.test("creates tree", function() {
+	const tree = new corbie.tree()
 })
-*/
+
+Deno.test("sends and receives messages", async function() {
+	await new Promise((resolve, reject) => {
+		const tree = new corbie.tree()
+
+		tree.on("test message", function() {
+			resolve()
+		})
+
+		tree.emit("test message")
+	})
+})
 
 Deno.test("starts", async function() {
-	const server = new corbie.parliament()
-	server.start()
+	const server = startup()
 	await server.close()
 })
 
 Deno.test("handles GET /", async function() {
-	const server = new corbie.parliament()
-	server.start()
+	const server = startup()
 
-	var response = await fetch("http://localhost:8080/")
+	var response = await fetch(baseURI + "/")
 	asserts.assert(response.ok, "is ok")
 	asserts.assert(response.status == 200, "is 200")
 	asserts.assert(response.text(), "has text")
@@ -27,10 +56,9 @@ Deno.test("handles GET /", async function() {
 })
 
 Deno.test("404s", async function() {
-	const server = new corbie.parliament()
-	server.start()
+	const server = startup()
 
-	var response = await fetch("http://localhost:8080/😎")
+	var response = await fetch(baseURI + "/😎")
 	asserts.assert(!response.ok, "is not ok")
 	asserts.assert(response.status == 404, "is 404")
 	asserts.assert(response.text(), "has text")
@@ -39,13 +67,12 @@ Deno.test("404s", async function() {
 })
 
 Deno.test("400s on bad POST /post/", async function() {
-	const server = new corbie.parliament()
-	server.start()
+	const server = startup()
 
 	const fetchOpts = {
 		method: "POST"
 	}
-	var response = await fetch("http://localhost:8080/post/", fetchOpts)
+	var response = await fetch(baseURI + "/post/", fetchOpts)
 	await server.close()
 
 	asserts.assert(!response.ok, "is not ok")
@@ -57,8 +84,7 @@ Deno.test("400s on bad POST /post/", async function() {
 })
 
 Deno.test("accepts POST /post/", async function() {
-	const server = new corbie.parliament()
-	server.start()
+	const server = startup()
 
 	const fetchOpts = {
 		method: "POST",
@@ -67,7 +93,7 @@ Deno.test("accepts POST /post/", async function() {
 			"content-type": "application/json"
 		}
 	}
-	var response = await fetch("http://localhost:8080/post/", fetchOpts)
+	var response = await fetch(baseURI + "/post/", fetchOpts)
 	await server.close()
 
 	asserts.assert(response.ok, "is ok")
@@ -76,13 +102,11 @@ Deno.test("accepts POST /post/", async function() {
 	asserts.assert(json, "has json")
 	asserts.assert(!json.error, "has no json error")
 	asserts.assert(json.result, "has json result")
-
 })
 
 Deno.test("accepts WebSocket connection", function() {
 	return new Promise(function(resolve, reject) {
-		const server = new corbie.parliament()
-		server.start()
+		const server = startup()
 
 		const ws = new WebSocket('ws://localhost:8080/socket/')
 		ws.onopen = () => ws.send('{"foo":"true"}')
@@ -97,13 +121,15 @@ Deno.test("accepts WebSocket connection", function() {
 })
 
 Deno.test("runs softcode", async function() {
-	const nest = new corbie.nest({})
+	const tree = new corbie.tree()
+	const nest = new corbie.nest(tree, {})
 	var ret = await nest.execAs(undefined, '2 + 2')
 	asserts.assert(ret.Value.number == 4, "Returned correct value")
 })
 
 Deno.test("terminates runaway softcode", async function() {
-	const nest = new corbie.nest({})
+	const tree = new corbie.tree()
+	const nest = new corbie.nest(tree, {})
 	try {
 		await nest.execAs(undefined, 'while(true) { continue }')
 		asserts.fail("Did not throw!")

@@ -10,7 +10,8 @@ function egg(id, type, attribs) {
 	}.bind(this)
 }
 
-export default function nest(db) {
+export default function nest(tree, db) {
+	this.tree = tree
 	this.db = db
 
 	this.find = function(query) {

@@ -1,6 +1,6 @@
 import * as uuid from "https://deno.land/std@0.116.0/uuid/mod.ts"
 
-function Tree() {
+export default function tree() {
 	this.listeners = []
 
 	this.emit = function(ev, ...args) {
@@ -25,13 +25,4 @@ function Tree() {
 			delete this.listeners[index]
 		}
 	}
-}
-
-var singleton = false
-
-export default function tree() {
-	if(!singleton) {
-		singleton = new Tree()
-	}
-	return singleton
 }
