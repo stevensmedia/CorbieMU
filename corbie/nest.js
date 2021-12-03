@@ -46,13 +46,15 @@ export default function nest(db) {
 
 			worker.addEventListener('message', function(msg) {
 				if(msg.data.type == "open") {
-					worker.postMessage({ type: "init", script: script})
+					worker.postMessage({ type: "init", script: script })
 				}
 
 				if(msg.data.type == "done") {
+					worker.terminate()
 					resolve(msg.data.value)
 				}
 				if(msg.data.type == "error") {
+					worker.terminate()
 					reject(msg.data.error)
 				}
 			})

@@ -32,11 +32,9 @@ proc.addEventListener("message", (msg) => {
 
 			var result = realm.evaluateScript(msg.data.script)
 			proc.postMessage({ type: "done", value: result })
-			proc.close()
 		}
 	} catch(e) {
 		proc.postMessage({ type: "error", error: e })
-		proc.close()
 	}
 })
 proc.postMessage({ type: "open" })
