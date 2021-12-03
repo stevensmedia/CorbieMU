@@ -1,4 +1,4 @@
-import * as uuid from "https://deno.land/std/uuid/mod.ts"
+import * as uuid from "https://deno.land/std@0.116.0/uuid/mod.ts"
 
 function Tree() {
 	this.listeners = []
