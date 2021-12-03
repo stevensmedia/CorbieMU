@@ -39,3 +39,4 @@ proc.addEventListener("message", (msg) => {
 		proc.close()
 	}
 })
+proc.postMessage({ type: "open" })
