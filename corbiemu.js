@@ -13,5 +13,8 @@ tree.on("Packet", function(packet) {
 	corbie.tree().emit("Log", "Received packet!", JSON.stringify(packet))
 })
 
+const db = new corbie.dbMemory()
+const nest = new corbie.nest(db)
+
 const server = new corbie.parliament(tree)
 server.start()

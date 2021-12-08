@@ -137,3 +137,33 @@ Deno.test("terminates runaway softcode", async function() {
 		asserts.assert(e.message == "Terminated", "Terminated error")
 	}
 })
+
+Deno.test("validates passwords", async function() {
+	const tree = new corbie.tree()
+	const db = new corbie.dbMemory()
+	const nest = new corbie.nest(tree, db)
+	const Luminiferous = "SHA-512$AETHER$951d76fb615b66fad92cc28e6fb55ab8241c80e35ab6da63fd305cb9bb0fa9485d17840301ab6824ffb851509522a4c3ccc10ba972586af1e2bf5136c5801f15"
+	const pw = 'Luminiferous'
+	asserts.assert(await nest.checkPassword(pw, Luminiferous))
+	asserts.assert(!(await nest.checkPassword('Magick', Luminiferous)))
+})
+
+Deno.test("creates valid passwords", async function() {
+	const tree = new corbie.tree()
+	const db = new corbie.dbMemory()
+	const nest = new corbie.nest(tree, db)
+	const pw = 'Luminiferous'
+	const Luminiferous = "SHA-512$AETHER$951d76fb615b66fad92cc28e6fb55ab8241c80e35ab6da63fd305cb9bb0fa9485d17840301ab6824ffb851509522a4c3ccc10ba972586af1e2bf5136c5801f15"
+	const generated = await nest.createPassword(pw, 'AETHER')
+	asserts.assert(Luminiferous == generated)
+})
+
+Deno.test("creates valid passwords with random salts", async function() {
+	const tree = new corbie.tree()
+	const db = new corbie.dbMemory()
+	const nest = new corbie.nest(tree, db)
+	const pw = 'Luminiferous'
+	const generated = await nest.createPassword(pw)
+	asserts.assert(await nest.checkPassword(pw, generated))
+	asserts.assert(!(await nest.checkPassword(pw + "1", generated)))
+})
