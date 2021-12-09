@@ -22,8 +22,9 @@ function hexToBytes(hex) {
 }
 
 const NEXUS = 0
-const CAPTAIN = 1
-const BRIDGE = 2
+const WIZARD = 1
+const MASTER = 2
+const CONNECT = 3
 
 export default function nest(tree, db) {
 	/* Functions not bound to this */
@@ -106,14 +107,14 @@ export default function nest(tree, db) {
 	this.init = function() {
 		/*  Set up basics */
 
-		if(!this.db.exists(CAPTAIN)) {
-			const captain = {
+		if(!this.db.exists(WIZARD)) {
+			const wizard = {
 				Indestructible: true,
-				Password: this.createPassword('Luminiferous', 'AETHER')
-				desc: "Though related to a peer, I can hand, reef, and steer, And ship a selvagee; I am never known to quail at the fury of a gale, and I’m never, never sick at sea!",
-				name: "Captain",
+				Password: this.createPassword('Luminiferous', 'AETHER'),
+				desc: "Do not meddle in the affairs of wizards, for they are subtle and quick to anger.",
+				name: "Wizard",
 			}
-			this.db.create(captain, CAPTAIN, CAPTAIN)
+			this.db.create(wizard, WIZARD, WIZARD)
 		}
 
 		if(!this.db.exists(NEXUS)) {
@@ -122,16 +123,26 @@ export default function nest(tree, db) {
 				desc: "In the beginning, the Earth was without form, and void.",
 				name: "Nexus",
 			}
-			this.db.create(nexus, CAPTAIN, NEXUS)
+			this.db.create(nexus, WIZARD, NEXUS)
 		}
 
-		if(!this.db.exists(BRIDGE)) {
+		if(!this.db.exists(MASTER)) {
 			const nexus = {
 				Indestructible: true,
-				desc: "You have the conn.",
-				name: "Nexus",
+				desc: "ALL THESE WORLDS ARE YOURS EXCEPT EUROPA. ATTEMPT NO LANDING THERE.",
+				name: "Master Room",
 			}
-			this.db.create(nexus, CAPTAIN, BRIDGE)
+			this.db.create(nexus, WIZARD, MASTER)
 		}
+
+		if(!this.db.exists(CONNECT)) {
+			const connect = {
+				Indestructible: true,
+				desc: "Welcome to the MUSH!",
+				name: "Connect",
+			}
+			this.db.create(connect, WIZARD, CONNECT)
+		}
+
 	}.bind(this)
 }
