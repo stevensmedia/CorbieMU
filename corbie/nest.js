@@ -143,6 +143,5 @@ export default function nest(tree, db) {
 			}
 			this.db.create(connect, WIZARD, CONNECT)
 		}
-
 	}.bind(this)
 }
